@@ -15,6 +15,6 @@ public enum Action {
             case 'R': return R;
         }
 
-        throw new IllegalArgumentException("Direction action: " + ch);
+        throw new IllegalArgumentException("Unknown action: " + ch);
     }
 }
