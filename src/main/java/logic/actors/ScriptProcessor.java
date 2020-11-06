@@ -61,8 +61,7 @@ public class ScriptProcessor {
 
         var calculatedPosition = mower.getPosition();
 
-        while (true) {
-            if(!actionIterator.hasNext()) break;
+        while (actionIterator.hasNext()) {
             var action = actionIterator.next();
 
             var nextPosition = calculatedPosition.applyAction(action);
