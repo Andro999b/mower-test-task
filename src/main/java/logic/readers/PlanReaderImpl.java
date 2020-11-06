@@ -57,7 +57,7 @@ public class PlanReaderImpl implements PlanReader {
         var matcher = POSITION_PATTERN.matcher(line.trim());
 
         if(!matcher.matches())
-            throw new IllegalArgumentException("Incorrect laws size format");
+            throw new IllegalArgumentException("Incorrect position size format");
 
         return new Position(
                 Integer.parseInt(matcher.group(1)),
