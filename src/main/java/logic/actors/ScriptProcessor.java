@@ -77,8 +77,9 @@ public class ScriptProcessor {
 
         if(calculatedPosition.getX() == mower.getPosition().getX() &&
                         calculatedPosition.getY() == mower.getPosition().getY()) { // not moved
-            context.getLog().info("Mower done {}", mower);
-            root.tell(new Root.Done(mower));
+            var finalMower = mower.move(calculatedPosition);
+            context.getLog().info("Mower done {}", finalMower);
+            root.tell(new Root.Done(finalMower));
             return Behaviors.empty();
         }
 
