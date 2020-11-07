@@ -66,7 +66,7 @@ public class ScriptProcessor {
 
             var nextPosition = calculatedPosition.applyAction(action);
             if(action.isMoveAction()) {
-                if(lawn.isInBounds(calculatedPosition)) { // check if new position in lawn
+                if(lawn.isInBounds(nextPosition)) { // check if new position in lawn
                     calculatedPosition = nextPosition;
                     break;
                 }// else just continue cycle
