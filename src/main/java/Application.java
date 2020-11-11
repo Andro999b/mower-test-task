@@ -30,8 +30,10 @@ public class Application {
         result.whenComplete((reply, failure) -> {
             if (reply instanceof Root.Mowers)
                 log.info("Result: {}", ((Root.Mowers) reply).getMowers());
-            else
+            else {
                 log.error("Computation filed. ", failure);
+                system.terminate();
+            }
         });
     }
 }

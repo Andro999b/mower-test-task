@@ -2,6 +2,7 @@ package logic.actors;
 
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
+import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Routers;
@@ -15,8 +16,11 @@ import java.util.TreeSet;
 
 public final class Root {
 
-    public interface Command { }
-    public interface Reply { }
+    public interface Command {
+    }
+
+    public interface Reply {
+    }
 
     @Value
     public static class Mowers implements Reply {
@@ -49,18 +53,20 @@ public final class Root {
                 .receive(Command.class)
                 .onMessage(Run.class, (init) -> {
                     var plan = init.plan;
-                    var intersectionChecker = context.spawn(IntersectionChecker.create(), "intersectionChecker");
+                    var grid = IntersectionGrid.create(context, plan.getLawn());
                     var router =
-                            Routers.pool(
-                                    plan.getScripts().size(),
-                                    ScriptProcessor.create(
-                                            plan.getLawn(),
-                                            intersectionChecker,
-                                            context.getSelf()
+                            Routers
+                                    .pool(
+                                            plan.getScripts().size(),
+                                            ScriptProcessor.create(
+                                                    plan.getLawn(),
+                                                    grid,
+                                                    context.getSelf()
+                                            )
                                     )
-                            ).withRoundRobinRouting();
+                                    .withRoundRobinRouting();
 
-                    var scriptProcessor = context.spawn(router, "scriptProcessor");
+                    var scriptProcessor = context.spawn(router, "script-processor");
 
                     plan.getScripts()
                             .stream()
@@ -74,7 +80,7 @@ public final class Root {
 
     private Behavior<Command> awaitDone(Collection<Mower> doneMowers, int mowersLeft, ActorRef<Reply> replyTo) {
 
-        if(mowersLeft == 0) {
+        if (mowersLeft == 0) {
             replyTo.tell(new Mowers(doneMowers));
             return Behaviors.stopped();
         }

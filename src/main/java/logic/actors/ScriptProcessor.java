@@ -10,7 +10,8 @@ import lombok.Value;
 import java.util.Iterator;
 
 public class ScriptProcessor {
-    interface Command {}
+    interface Command {
+    }
 
     @Value
     public static class RunScript implements Command {
@@ -23,23 +24,23 @@ public class ScriptProcessor {
     }
 
     private final ActorContext<Command> context;
-    private final ActorRef<IntersectionChecker.Command> interceptionChecker;
+    private final IntersectionGrid grid;
     private final ActorRef<Root.Command> root;
     private final Lawn lawn;
 
-    public ScriptProcessor(ActorContext<Command> context, ActorRef<IntersectionChecker.Command> interceptionChecker, ActorRef<Root.Command> root, Lawn lawn) {
+    public ScriptProcessor(ActorContext<Command> context, IntersectionGrid grid, ActorRef<Root.Command> root, Lawn lawn) {
         this.context = context;
-        this.interceptionChecker = interceptionChecker;
+        this.grid = grid;
         this.root = root;
         this.lawn = lawn;
     }
 
     public static Behavior<Command> create(
             Lawn lawn,
-            ActorRef<IntersectionChecker.Command> interceptionChecker,
+            IntersectionGrid grid,
             ActorRef<Root.Command> root
     ) {
-        return Behaviors.setup((ctx) -> new ScriptProcessor(ctx, interceptionChecker, root, lawn).awaitRunScript());
+        return Behaviors.setup((ctx) -> new ScriptProcessor(ctx, grid, root, lawn).awaitRunScript());
     }
 
     private Behavior<Command> awaitRunScript() {
@@ -57,37 +58,48 @@ public class ScriptProcessor {
     }
 
     private Behavior<Command> calcNextPosition(Mower mower, Iterator<Action> actionIterator) {
-        context.getLog().info("Calc next position for mower {}", mower);
+        try {
+            context.getLog().info("Calc next position for mower {}", mower);
 
-        var calculatedPosition = mower.getPosition();
+            var calculatedPosition = mower.getPosition();
 
-        while (actionIterator.hasNext()) {
-            var action = actionIterator.next();
+            while (actionIterator.hasNext()) {
+                var action = actionIterator.next();
 
-            var nextPosition = calculatedPosition.applyAction(action);
-            if(action.isMoveAction()) {
-                if(lawn.isInBounds(nextPosition)) { // check if new position in lawn
-                    calculatedPosition = nextPosition;
-                    break;
-                }// else just continue cycle
-            } else {
-                calculatedPosition = nextPosition;// just rotation
+                var nextPosition = calculatedPosition.applyAction(action);
+                if (action.isMoveAction()) {
+                    if (lawn.isInBounds(nextPosition)) { // check if new position in lawn
+                        calculatedPosition = nextPosition;
+                        break;
+                    }// else just continue cycle
+                } else {
+                    calculatedPosition = nextPosition;// just rotation
+                }
             }
+
+            if (calculatedPosition.getX() == mower.getPosition().getX() &&
+                    calculatedPosition.getY() == mower.getPosition().getY()) { // not moved
+                var finalMower = mower.move(calculatedPosition);
+                context.getLog().info("Mower done {}", finalMower);
+                root.tell(new Root.Done(finalMower));
+                return Behaviors.empty();
+            }
+
+            context.getLog().info("Check new mower position {}, {}", mower, calculatedPosition);
+
+            //check intersection
+            grid
+                    .getChecker(calculatedPosition)
+                    .tell(
+                            new IntersectionChecker.CheckRequest(mower.getPosition(), calculatedPosition, context.getSelf())
+                    );
+
+            return awaitCheckResponse(mower, actionIterator, calculatedPosition);
+        } catch (Throwable t) {
+            context.getLog().error("Script Processor fail for mower {}", mower, t);
+            root.tell(new Root.Done(mower));
+            return Behaviors.stopped();
         }
-
-        if(calculatedPosition.getX() == mower.getPosition().getX() &&
-                        calculatedPosition.getY() == mower.getPosition().getY()) { // not moved
-            var finalMower = mower.move(calculatedPosition);
-            context.getLog().info("Mower done {}", finalMower);
-            root.tell(new Root.Done(finalMower));
-            return Behaviors.empty();
-        }
-
-        context.getLog().info("Check new mower position {}, {}", mower, calculatedPosition);
-
-        //check intersection
-        interceptionChecker.tell(new IntersectionChecker.CheckRequest(mower.getId(), calculatedPosition, context.getSelf()));
-        return awaitCheckResponse(mower, actionIterator, calculatedPosition);
     }
 
     private Behavior<Command> awaitCheckResponse(Mower mower, Iterator<Action> actionIterator, Position position) {
