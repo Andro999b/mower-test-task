@@ -76,7 +76,9 @@ public class PlanReaderImpl implements PlanReader {
             throw new IllegalArgumentException("Incorrect laws size format");
 
         return new Lawn(
+                0,
                 Integer.parseInt(matcher.group(1)),
+                0,
                 Integer.parseInt(matcher.group(2))
         );
     }

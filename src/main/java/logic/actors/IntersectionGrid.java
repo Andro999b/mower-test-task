@@ -32,9 +32,19 @@ public class IntersectionGrid {
         for (int i = 0; i < w; i++) {
             var rows = new ArrayList<ActorRef<IntersectionChecker.Command>>();
             for (int j = 0; j < h; j++) {
-                rows.add(context.spawn(
-                        IntersectionChecker.create(grid, new Lawn(j * SEGMENT_SIZE, i * SEGMENT_SIZE)),
-                        "intersection-checker-" + i + "-" + j)
+                rows.add(
+                        context.spawn(
+                                IntersectionChecker.create(
+                                        grid,
+                                        new Lawn(
+                                                j * SEGMENT_SIZE,
+                                                (j + 1) * SEGMENT_SIZE - 1,
+                                                i * SEGMENT_SIZE,
+                                                (i + 1) * SEGMENT_SIZE - 1
+                                        )
+                                ),
+                                "intersection-checker-" + i + "-" + j
+                        )
                 );
             }
             columns.add(rows);
